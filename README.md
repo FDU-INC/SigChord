@@ -175,7 +175,7 @@ python3 -m scripts.dtmp
 ```
 You can configure the parameters in the script.
 
-To run DCS benchmarks, you need a different Python environment with Tensorflow 1.15. (refer to [link to their repository]())
+To run DCS benchmarks, you need a different Python environment with Tensorflow 1.15.
 
 To prepare the environment:
 ```bash
