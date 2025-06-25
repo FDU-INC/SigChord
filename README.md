@@ -8,8 +8,6 @@ SigChord is a physical layer sniffing demo that provides wide and deep views abo
     - protocol identification
     - open header decoding
 
-Currently this repository contains the basic neural network and signal recovery code for SigChord. We are planning to add usage examples and more detailed documentation in the future.
-
 # About Multi-coset Sub-Nyquist Sampling
 
 SigChord is based on multi-coset sub-Nyquist sampling.
@@ -188,7 +186,7 @@ Then run:
 ```bash
 python3 -m scripts.dcs_recon_tf
 ```
-You can configure the parameters in the script. To specify the dataset, modify [models/benchmarks/dcs_recon_tf.py](./models/benchmarks/dcs_recon_tf.py).
+You can configure the parameters in the script. To specify the dataset, modify [models/benchmark/dcs_tf/get_data.py](./models/benchmark/dcs_tf/get_data.py).
 
 ### Protocol Identification
 
