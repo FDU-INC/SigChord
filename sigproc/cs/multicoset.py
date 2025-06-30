@@ -4,6 +4,8 @@ A brief implementation for multicoset sampling scheme
 
 import numpy as np
 import torch
+from itertools import combinations
+from multiprocessing import Pool, cpu_count
 
 DEFAULT_N_BANDS = 40
 # DEFAULT_OFFSETS = [16, 11, 1, 0, 27, 24, 37, 31]
@@ -13,6 +15,7 @@ DEFAULT_BEST_OFFSETS = {
     3: [1, 4, 8],
     4: [2, 3, 6, 15],
     5: [2, 4, 5, 10, 20],
+    8: [3, 4, 8, 9, 11, 19, 22, 31]
 }
 
 
@@ -199,5 +202,27 @@ def find_best_offsets():
     print(min_offsets)
     print(min_corr)
 
+def evaluate_offsets(offsets, nBands):
+    A_aux = np.matrix(offsets).T * np.matrix(np.arange(0, nBands, 1))
+    A = np.matrix(np.exp(2j * np.pi * A_aux / nBands))
+    corr = get_correlation(A)
+    return (corr, offsets)
+
+def find_best_offsets_():
+    nBands = 40
+    all_offsets = list(combinations(range(nBands), 8))  # 简化！
+
+    print(f"Searching among {len(all_offsets)} combinations...")
+
+    with Pool(processes=cpu_count()) as pool:
+        results = list(pool.starmap(evaluate_offsets, [(offsets, nBands) for offsets in all_offsets]))
+
+    min_corr, min_offsets = min(results, key=lambda x: x[0])
+
+    print(min_offsets)
+    print(min_corr)
+
 if __name__ == "__main__":
-    find_best_offsets()
+    # find_best_offsets_()
+    print(evaluate_offsets([0, 1, 2, 3, 4, 5, 6, 7], 40))
+    print(evaluate_offsets(DEFAULT_BEST_OFFSETS[8], 40))
