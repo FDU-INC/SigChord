@@ -136,19 +136,19 @@ def dft_torch(signals: torch.Tensor, offsets: list[int], nBands: int):
     device = signals.device  # Ensure all operations run on the same device
 
     # Convert offsets to a PyTorch tensor
-    offsets = torch.tensor(offsets, dtype=torch.float32, device=device).reshape(-1, 1)
+    offsets_torch = torch.tensor(offsets, dtype=torch.float32, device=device).reshape(-1, 1)
     
     # Create frequency domain transformation matrix
     nSamples = signals.shape[-1]
     time_indices = torch.arange(nSamples, device=device).reshape(1, -1).float()
-    YCoeff = torch.exp(-2j * torch.pi / (nBands * nSamples) * (offsets @ time_indices))
+    YCoeff = torch.exp(-2j * torch.pi / (nBands * nSamples) * (offsets_torch @ time_indices))
 
     # Compute FFT (PyTorch's FFT preserves scale)
     Y = YCoeff * torch.fft.fft(signals, dim=-1)
 
     # Construct measurement matrix A
     freq_indices = torch.arange(0, nBands, device=device).reshape(1, -1).float()
-    A = torch.exp(2j * torch.pi * (offsets @ freq_indices) / nBands)
+    A = torch.exp(2j * torch.pi * (offsets_torch @ freq_indices) / nBands)
 
     # Scale A to compensate for FFT amplitude differences
     A = nSamples * A
