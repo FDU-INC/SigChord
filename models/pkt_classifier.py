@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 import torch.utils.benchmark as benchmark
 
 import sigproc.cs.multicoset as M
+from lse_solver import LSESolver
 import utils
 
 class Classifier(nn.Module):
@@ -103,13 +104,7 @@ class Net(nn.Module):
         if M.DEFAULT_BEST_OFFSETS.get(n_coset) is not None:
             self.offsets = M.DEFAULT_BEST_OFFSETS[n_coset]
 
-        indices = M.DEFAULT_OFFSETS_SORTED_IDS[self.offsets]
-        orders = np.argsort(np.argsort(indices))
-        self.x_access_order = orders
-
-        Y_coeff, A = self.get_rec_mats(self.offsets)
-        self.A = nn.Parameter(A, requires_grad=False)
-        self.Y_coeff = nn.Parameter(Y_coeff, requires_grad=False)
+        self.lse_solver = LSESolver(self.n_coset, self.offsets)
 
         self.classifer_base = Classifier(
             seq_len=self.N_SAMPLE,
@@ -135,39 +130,6 @@ class Net(nn.Module):
         Y_coeff = np.exp(-2j * np.pi / (self.SAMPLING_RATIO * self.N_SAMPLE) * Y_aux)
         return torch.tensor(Y_coeff, dtype=torch.complex64), torch.tensor(A, dtype=torch.complex64)
 
-    def recover_with_support(self, x: Tensor, support: Tensor) -> Tensor:
-        """
-        `support`, one-hot tensor of size (batch_size, n_band)
-        """
-        x = x[..., 0::2] + 1j * x[..., 1::2]
-        x = x.transpose(-2, -1)
-        # y = self.Y_coeff * torch.fft.fft(x, dim=-1)
-        # ugly hack, see the comments in __init__
-        y = self.Y_coeff * torch.fft.fft(x[:, self.x_access_order, :], dim=-1)
-
-        n_occupied_each = torch.sum(support, dim=-1)
-        xs_list = [None] * n_occupied_each.shape[0]
-        unique_n_occupied = torch.unique(n_occupied_each)
-
-        for n_occupied in unique_n_occupied:
-            mask = n_occupied_each == n_occupied
-            support_batch = support[mask]
-            sup = torch.nonzero(support_batch)
-            As = self.A[:, sup[:, 1]].view(self.n_coset, support_batch.shape[0], n_occupied)
-            As = As.transpose(0, 1)
-            xs = torch.linalg.lstsq(As, y[mask])[0]
-
-            # keep the order
-            cnt = 0
-            for i in range(mask.shape[0]):
-                if mask[i]:
-                    xs_list[i] = xs[cnt]
-                    cnt += 1
-
-        Xs = torch.cat(xs_list, dim=0)
-
-        return Xs
-
     def forward(self, x: Tensor, bands: Tensor, timeit_runs: int = 0) -> Tensor:
         """
         Args:
@@ -177,7 +139,7 @@ class Net(nn.Module):
         """
         x = x[:, ::1, :].float()
         support = (bands.cuda() > -1).long()
-        x = torch.fft.ifft(self.recover_with_support(x, support))
+        x = torch.fft.ifft(self.lse_solver.recover_with_support(x, support))
 
         x = torch.stack([x.real, x.imag], dim=-1)
         x /= torch.std(x, [1, 2], keepdim=True)
