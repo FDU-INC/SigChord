@@ -3,11 +3,14 @@ import h5py
 import tqdm
 from sigproc.cs import multicoset as M
 from sigproc.prelude import awgn_torch
+from typing import Optional
 
-def solve(Y: torch.Tensor, A: torch.Tensor, e: float, sigma2: float, C: float, sparsity: int = None):
+from cor_samples import build_autocorrelation_samples, get_d_list
+
+def solve(Y: torch.Tensor, A: torch.Tensor, e: float, sigma2: float, C: float, sparsity: Optional[int] = None):
     R = Y.clone()
     S = set()
-    ER = torch.inf
+    # ER = torch.inf
     Theta = {}
     
     p, L = A.shape
@@ -23,7 +26,7 @@ def solve(Y: torch.Tensor, A: torch.Tensor, e: float, sigma2: float, C: float, s
         Theta_t = torch.linalg.lstsq(At.unsqueeze(1), R, rcond=None).solution
         Theta[alpha_t] = Theta_t
         R -= At.unsqueeze(1) @ Theta_t
-        ER = torch.norm(R)
+        # ER = torch.norm(R)
         t += 1
     
     S_res = S  # No filtering step
@@ -37,9 +40,13 @@ def main():
     snr = 10
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    with h5py.File("./data/multi_usrp_sub.h5", "r") as file:
-        waveforms = torch.tensor(file["waveforms"][:], dtype=torch.float32)
-        bands = torch.tensor(file["bands"][:] >= 0, dtype=torch.uint8)
+    with h5py.File("./data/multi_usrp_test.h5", "r") as file:
+        file_waveforms = file["waveforms"]
+        assert isinstance(file_waveforms, h5py.Dataset)
+        file_bands = file["bands"]
+        assert isinstance(file_bands, h5py.Dataset)
+        waveforms = torch.tensor(file_waveforms[:], dtype=torch.float32)
+        bands = torch.tensor(file_bands[:] >= 0, dtype=torch.uint8)
         
         # data_len = bands.shape[0]
         data_len = 1024
